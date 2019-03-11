@@ -1,0 +1,36 @@
+# idea project files and folder #
+*.iml
+*.ipr
+*.iws
+.idea/
+/out/
+
+# OSX dot files #
+
+.DS_Store
+
+# Package Files #
+
+*.class
+*.war
+*.jar
+
+# Maven
+target/
+**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/**
+**/.settings/
+**/*.project
+**/*.classpath
+mvnw
+mvnw.cmd
+
+
+**/myutil/

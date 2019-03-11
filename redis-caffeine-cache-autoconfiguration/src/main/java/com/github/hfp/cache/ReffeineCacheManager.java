@@ -1,0 +1,179 @@
+package com.github.hfp.cache;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.hfp.config.ReffeineCacheConfiguration;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import org.springframework.cache.Cache;
+import org.springframework.cache.support.AbstractCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.util.Assert;
+
+public class ReffeineCacheManager extends AbstractCacheManager {
+    /**
+     * Caffeine 缓存builder, 通过 ReffeineCacheConfiguration#caffeineSpec 初始化
+     */
+    private Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder();
+    /**
+     * Redis 客户端
+     */
+    private final ReffeineCacheWriter reffeineCacheWriter;
+    /**
+     * 默认的缓存配置
+     */
+    private final ReffeineCacheConfiguration defaultCacheConfig;
+    /**
+     * 初始化缓存配置
+     */
+    private final Map<String, ReffeineCacheConfiguration> initialCacheConfig;
+    /**
+     * 是否允许新建缓存, {@literal false} 的时候, 如果 initialCacheConfig 没有配置则无法创建缓存
+     */
+    private final boolean allowInFlightCacheCreation;
+
+    public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
+            ReffeineCacheConfiguration defaultCacheConfig,
+            Map<String, ReffeineCacheConfiguration> initialCacheConfig, boolean allowInFlightCacheCreation) {
+        Assert.notNull(reffeineCacheWriter, "ReffeineCacheWriter must not be null!");
+        Assert.notNull(defaultCacheConfig, "ReffeineCacheConfiguration must not be null!");
+        Assert.notNull(initialCacheConfig, "InitialCacheConfig must not be null!");
+
+        this.reffeineCacheWriter = reffeineCacheWriter;
+        this.defaultCacheConfig = defaultCacheConfig;
+        this.initialCacheConfig = initialCacheConfig;
+        this.allowInFlightCacheCreation = allowInFlightCacheCreation;
+        if (this.defaultCacheConfig.getCaffeineSpec() != null) {
+            caffeineBuilder = Caffeine.from(this.defaultCacheConfig.getCaffeineSpec());
+        }
+    }
+
+    public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
+            ReffeineCacheConfiguration defaultCacheConfig) {
+        this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), true);
+    }
+
+    public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
+            ReffeineCacheConfiguration defaultCacheConfig, boolean allowInFlightCacheCreation) {
+        this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), allowInFlightCacheCreation);
+    }
+
+    public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
+            ReffeineCacheConfiguration defaultCacheConfig,
+            Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
+        this(reffeineCacheWriter, defaultCacheConfig, initialCacheConfig, true);
+    }
+
+    private boolean isAllowNullValue() {
+        return this.defaultCacheConfig.getAllowCacheNullValues();
+    }
+
+    @Override
+    protected Collection<? extends Cache> loadCaches() {
+        Set<ReffeineCache> reffeineCaches = new LinkedHashSet<>(initialCacheConfig.size());
+        for (Map.Entry<String, ReffeineCacheConfiguration> entry : initialCacheConfig.entrySet()) {
+            reffeineCaches.add(createReffeineCache(entry.getKey(), entry.getValue()));
+        }
+        return reffeineCaches;
+    }
+
+    @Override
+    protected Cache getMissingCache(String name) {
+        return this.allowInFlightCacheCreation ? createReffeineCache(name,
+                initialCacheConfig.getOrDefault(name, defaultCacheConfig)) : null;
+    }
+
+    private ReffeineCache createReffeineCache(String name, ReffeineCacheConfiguration configuration) {
+        return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeineBuilder.build());
+    }
+
+    public Caffeine<Object, Object> getCaffeineBuilder() {
+        return caffeineBuilder;
+    }
+
+    public void setCaffeineBuilder(
+            Caffeine<Object, Object> caffeineBuilder) {
+        this.caffeineBuilder = caffeineBuilder;
+    }
+
+    public ReffeineCacheWriter getReffeineCacheWriter() {
+        return reffeineCacheWriter;
+    }
+
+    public ReffeineCacheConfiguration getDefaultCacheConfig() {
+        return defaultCacheConfig;
+    }
+
+    public Map<String, ReffeineCacheConfiguration> getInitialCacheConfig() {
+        return initialCacheConfig;
+    }
+
+    public boolean isAllowInFlightCacheCreation() {
+        return allowInFlightCacheCreation;
+    }
+
+    /**
+     * CacheManagerBuilder
+     */
+    public static class ReffeineCacheManagerBuilder {
+        private ReffeineCacheWriter reffeineCacheWriter;
+        private ReffeineCacheConfiguration defaultCacheConfig = ReffeineCacheConfiguration.defaultCacheConfig();
+        private Map<String, ReffeineCacheConfiguration> initialCacheConfig = new LinkedHashMap<>();
+        private boolean allowInFlightCacheCreation = true;
+        private String[] initialCacheNames;
+
+        private ReffeineCacheManagerBuilder(ReffeineCacheWriter reffeineCacheWriter) {
+            this.reffeineCacheWriter = reffeineCacheWriter;
+        }
+
+        public static ReffeineCacheManagerBuilder fromReffeineCacheWriter(ReffeineCacheWriter reffeineCacheWriter) {
+            Assert.notNull(reffeineCacheWriter, "ReffeineCacheWriter must not be null!");
+            return new ReffeineCacheManagerBuilder(reffeineCacheWriter);
+        }
+
+        public static ReffeineCacheManagerBuilder fromConnectionFactory(RedisConnectionFactory redisConnectionFactory) {
+            Assert.notNull(redisConnectionFactory, "RedisConnectionFactory must not be null!");
+            return new ReffeineCacheManagerBuilder(new DefaultReffeineCacheWriter(redisConnectionFactory));
+        }
+
+        public ReffeineCacheManagerBuilder defaultCacheConfig(ReffeineCacheConfiguration reffeineCacheConfiguration) {
+            Assert.notNull(defaultCacheConfig, "ReffeineCacheConfiguration must not be null!");
+            this.defaultCacheConfig = reffeineCacheConfiguration;
+            return this;
+        }
+
+        public ReffeineCacheManagerBuilder allowFlightCacheCreation(boolean allowInFlightCacheCreation) {
+            this.allowInFlightCacheCreation = allowInFlightCacheCreation;
+            return this;
+        }
+
+        public ReffeineCacheManagerBuilder initialCaches(String[] initialCacheNames) {
+            this.initialCacheNames = initialCacheNames;
+            return this;
+        }
+
+        public ReffeineCacheManagerBuilder initialCacheConfig(
+                Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
+            this.initialCacheConfig = initialCacheConfig;
+            return this;
+        }
+
+        public ReffeineCacheManager build() {
+            Map<String, ReffeineCacheConfiguration> initConfigs = new LinkedHashMap<>();
+            if (initialCacheNames != null && initialCacheNames.length > 0) {
+                for (String name : initialCacheNames) {
+                    initConfigs.put(name, defaultCacheConfig);
+                }
+            }
+
+            if (initialCacheConfig != null && initialCacheConfig.size() > 0) {
+                initConfigs.putAll(initialCacheConfig);
+            }
+
+            return new ReffeineCacheManager(reffeineCacheWriter, defaultCacheConfig, initConfigs,
+                    allowInFlightCacheCreation);
+        }
+    }
+}
