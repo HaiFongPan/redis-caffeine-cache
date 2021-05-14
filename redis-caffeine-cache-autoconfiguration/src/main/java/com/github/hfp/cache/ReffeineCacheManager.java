@@ -1,11 +1,13 @@
 package com.github.hfp.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.github.hfp.config.ReffeineCacheConfiguration;
 import org.springframework.cache.Cache;
 import org.springframework.cache.support.AbstractCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -90,14 +92,22 @@ public class ReffeineCacheManager extends AbstractCacheManager {
 
     private ReffeineCache createReffeineCache(String name, ReffeineCacheConfiguration configuration) {
         Caffeine<Object, Object> caffeine = caffeineBuilder;
-        if (null != configuration.getCaffeineSpec()) {
-            caffeine = Caffeine.from(configuration.getCaffeineSpec());
-        }
+
         // ttl by name
         Matcher matcher = NAME_TTL_PATTERN.matcher(name);
         if (matcher.find()) {
-            caffeine.expireAfterWrite(parseDuration(name, matcher.group(1)));
+            if (null == configuration.getCaffeineSpec()) {
+                configuration.caffeineSpec(CaffeineSpec.parse("expireAfterWrite=" + matcher.group(1)));
+            } else {
+                String defaultSpec = configuration.getCaffeineSpec().toParsableString();
+                configuration = configuration.caffeineSpec(CaffeineSpec.parse(coverageCaffeineSpec(defaultSpec, "expireAfterWrite", matcher.group(1))));
+            }
+
             configuration = configuration.redisttl(parseDuration(name, matcher.group(2)));
+
+        }
+        if (null != configuration.getCaffeineSpec()) {
+            caffeine = Caffeine.from(configuration.getCaffeineSpec());
         }
 
         return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeine.build());
@@ -152,6 +162,16 @@ public class ReffeineCacheManager extends AbstractCacheManager {
         }
 
         return Duration.of(amount, timeUnit);
+    }
+
+    static String coverageCaffeineSpec(String oldSpec, String key, String value) {
+        oldSpec = oldSpec.replaceFirst(key + "=\\w+,*", "");
+        if (StringUtils.isEmpty(oldSpec)) {
+            oldSpec = String.format("%s=%s", key, value.toLowerCase());
+        } else {
+            oldSpec += String.format(",%s=%s", key, value.toLowerCase());
+        }
+        return oldSpec;
     }
 
     /**
