@@ -71,7 +71,7 @@ public class ReffeineCacheConfiguration {
                 null, DEFAULT_CACHE_EVICT_CHANNEL);
     }
 
-    ReffeineCacheConfiguration redisttl(Duration ttl) {
+    public ReffeineCacheConfiguration redisttl(Duration ttl) {
 
         Assert.notNull(ttl, "TTL duration must not be null!");
 
@@ -79,7 +79,7 @@ public class ReffeineCacheConfiguration {
                 valueSerializationPair, conversionService, caffeineSpec, cacheEvictChannel);
     }
 
-    ReffeineCacheConfiguration prefixKeysWith(String prefix) {
+    public ReffeineCacheConfiguration prefixKeysWith(String prefix) {
 
         Assert.notNull(prefix, "Key Prefix must not be null!");
 
@@ -126,14 +126,14 @@ public class ReffeineCacheConfiguration {
                 valueSerializationPair, conversionService, caffeineSpec, cacheEvictChannel);
     }
 
-    ReffeineCacheConfiguration caffeineSpec(CaffeineSpec caffeineSpec) {
+    public ReffeineCacheConfiguration caffeineSpec(CaffeineSpec caffeineSpec) {
         Assert.notNull(caffeineSpec, "CaffeineSpec must not be null!");
 
         return new ReffeineCacheConfiguration(redisttl, cacheNullValues, keyPrefix, keySerializationPair,
                 valueSerializationPair, conversionService, caffeineSpec, cacheEvictChannel);
     }
 
-    ReffeineCacheConfiguration cacheEvictChannel(String cacheEvictChannel) {
+    public ReffeineCacheConfiguration cacheEvictChannel(String cacheEvictChannel) {
         Assert.notNull(cacheEvictChannel, "CacheEvictChannel must not be null!");
         return new ReffeineCacheConfiguration(redisttl, cacheNullValues, keyPrefix, keySerializationPair,
                 valueSerializationPair, conversionService, caffeineSpec, cacheEvictChannel);

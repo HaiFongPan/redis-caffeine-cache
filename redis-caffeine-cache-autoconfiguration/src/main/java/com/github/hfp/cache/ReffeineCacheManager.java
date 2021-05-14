@@ -86,7 +86,11 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     }
 
     private ReffeineCache createReffeineCache(String name, ReffeineCacheConfiguration configuration) {
-        return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeineBuilder.build());
+        Caffeine<Object, Object> caffeine = caffeineBuilder;
+        if (null != configuration.getCaffeineSpec()) {
+            caffeine = Caffeine.from(configuration.getCaffeineSpec());
+        }
+        return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeine.build());
     }
 
     public Caffeine<Object, Object> getCaffeineBuilder() {
