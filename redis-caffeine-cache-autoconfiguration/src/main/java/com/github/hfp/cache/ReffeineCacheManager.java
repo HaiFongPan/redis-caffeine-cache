@@ -1,18 +1,13 @@
 package com.github.hfp.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.github.hfp.config.ReffeineCacheConfiguration;
 import org.springframework.cache.Cache;
 import org.springframework.cache.support.AbstractCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ReffeineCacheManager extends AbstractCacheManager {
@@ -94,18 +89,8 @@ public class ReffeineCacheManager extends AbstractCacheManager {
         Caffeine<Object, Object> caffeine = caffeineBuilder;
 
         // ttl by name
-        Matcher matcher = NAME_TTL_PATTERN.matcher(name);
-        if (matcher.find()) {
-            if (null == configuration.getCaffeineSpec()) {
-                configuration.caffeineSpec(CaffeineSpec.parse("expireAfterWrite=" + matcher.group(1)));
-            } else {
-                String defaultSpec = configuration.getCaffeineSpec().toParsableString();
-                configuration = configuration.caffeineSpec(CaffeineSpec.parse(coverageCaffeineSpec(defaultSpec, "expireAfterWrite", matcher.group(1))));
-            }
+        configuration = configuration.spelName(name);
 
-            configuration = configuration.redisttl(parseDuration(name, matcher.group(2)));
-
-        }
         if (null != configuration.getCaffeineSpec()) {
             caffeine = Caffeine.from(configuration.getCaffeineSpec());
         }
@@ -136,42 +121,6 @@ public class ReffeineCacheManager extends AbstractCacheManager {
 
     public boolean isAllowInFlightCacheCreation() {
         return allowInFlightCacheCreation;
-    }
-
-    static Duration parseDuration(String name, String value) {
-        String duration = value.substring(0, value.length() - 1);
-        Long amount = Long.valueOf(duration);
-        ChronoUnit timeUnit;
-        char lastChar = Character.toLowerCase(value.charAt(value.length() - 1));
-        switch (lastChar) {
-            case 'd':
-                timeUnit = ChronoUnit.DAYS;
-                break;
-            case 'h':
-                timeUnit = ChronoUnit.HOURS;
-                break;
-            case 'm':
-                timeUnit = ChronoUnit.MINUTES;
-                break;
-            case 's':
-                timeUnit = ChronoUnit.SECONDS;
-                break;
-            default:
-                throw new IllegalArgumentException(String.format(
-                        "name %s invalid format; was %s, must end with one of [dDhHmMsS]", name, value));
-        }
-
-        return Duration.of(amount, timeUnit);
-    }
-
-    static String coverageCaffeineSpec(String oldSpec, String key, String value) {
-        oldSpec = oldSpec.replaceFirst(key + "=\\w+,*", "");
-        if (StringUtils.isEmpty(oldSpec)) {
-            oldSpec = String.format("%s=%s", key, value.toLowerCase());
-        } else {
-            oldSpec += String.format(",%s=%s", key, value.toLowerCase());
-        }
-        return oldSpec;
     }
 
     /**

@@ -126,7 +126,7 @@ public class ReffeineCacheProperties {
     /**
      * Returns a parsed duration value.
      */
-    private static long parseDuration(String key, @Nullable String value) {
+    static long parseDuration(String key, @Nullable String value) {
         @SuppressWarnings("NullAway")
         String duration = value.substring(0, value.length() - 1);
         return parseLong(key, duration);
@@ -135,7 +135,7 @@ public class ReffeineCacheProperties {
     /**
      * Returns a parsed {@link TimeUnit} value.
      */
-    private static TimeUnit parseTimeUnit(String key, @Nullable String value) {
+    static TimeUnit parseTimeUnit(String key, @Nullable String value) {
         @SuppressWarnings("NullAway")
         char lastChar = Character.toLowerCase(value.charAt(value.length() - 1));
         switch (lastChar) {
