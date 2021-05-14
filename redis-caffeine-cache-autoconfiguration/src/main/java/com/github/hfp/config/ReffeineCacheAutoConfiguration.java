@@ -6,12 +6,12 @@ import com.github.hfp.cache.ReffeineCacheManager;
 import com.github.hfp.cache.ReffeineCacheMessageListener;
 import com.github.hfp.cache.ReffeineCacheWriter;
 import com.github.hfp.util.IPUtil;
-import java.time.Duration;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -20,6 +20,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.util.StringUtils;
+
+import java.time.Duration;
 
 @Configuration
 @AutoConfigureAfter(RedisAutoConfiguration.class)
@@ -56,19 +58,21 @@ public class ReffeineCacheAutoConfiguration {
         return configuration;
     }
 
+    @ConditionalOnMissingBean(ReffeineCacheManager.class)
     @Bean
     public ReffeineCacheManager reffeineCacheManager(ReffeineCacheWriter cacheWriter,
-            ReffeineCacheConfiguration cacheConfiguration) {
+                                                     ReffeineCacheConfiguration cacheConfiguration) {
         return ReffeineCacheManager.ReffeineCacheManagerBuilder.fromReffeineCacheWriter(cacheWriter)
                 .initialCaches(properties.getInitialCacheNames())
-                .allowFlightCacheCreation(properties.isAllowNullValues())
+                .allowFlightCacheCreation(properties.isAllowFlightCacheCreation())
                 .defaultCacheConfig(cacheConfiguration)
                 .build();
     }
 
+    @ConditionalOnMissingBean(RedisMessageListenerContainer.class)
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory connectionFactory,
-            ReffeineCacheManager reffeineCacheManager) {
+                                                                       ReffeineCacheManager reffeineCacheManager) {
         final ReffeineCacheConfiguration defaultCacheConfig = reffeineCacheManager.getDefaultCacheConfig();
         final ChannelTopic channelTopic = new ChannelTopic(defaultCacheConfig.getCacheEvictChannel());
         LOGGER.info("IP : " + IPUtil.getIP() + " start listen on " + defaultCacheConfig.getCacheEvictChannel());
