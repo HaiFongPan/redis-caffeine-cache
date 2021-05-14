@@ -2,17 +2,20 @@ package com.github.hfp.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.hfp.config.ReffeineCacheConfiguration;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 import org.springframework.cache.Cache;
 import org.springframework.cache.support.AbstractCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.util.Assert;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class ReffeineCacheManager extends AbstractCacheManager {
+    private static final Pattern NAME_TTL_PATTERN = Pattern.compile("#L(\\d+\\w)#R(\\d+\\w)");
+
     /**
      * Caffeine 缓存builder, 通过 ReffeineCacheConfiguration#caffeineSpec 初始化
      */
@@ -35,8 +38,8 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     private final boolean allowInFlightCacheCreation;
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig,
-            Map<String, ReffeineCacheConfiguration> initialCacheConfig, boolean allowInFlightCacheCreation) {
+                                ReffeineCacheConfiguration defaultCacheConfig,
+                                Map<String, ReffeineCacheConfiguration> initialCacheConfig, boolean allowInFlightCacheCreation) {
         Assert.notNull(reffeineCacheWriter, "ReffeineCacheWriter must not be null!");
         Assert.notNull(defaultCacheConfig, "ReffeineCacheConfiguration must not be null!");
         Assert.notNull(initialCacheConfig, "InitialCacheConfig must not be null!");
@@ -51,18 +54,18 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig) {
+                                ReffeineCacheConfiguration defaultCacheConfig) {
         this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), true);
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig, boolean allowInFlightCacheCreation) {
+                                ReffeineCacheConfiguration defaultCacheConfig, boolean allowInFlightCacheCreation) {
         this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), allowInFlightCacheCreation);
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig,
-            Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
+                                ReffeineCacheConfiguration defaultCacheConfig,
+                                Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
         this(reffeineCacheWriter, defaultCacheConfig, initialCacheConfig, true);
     }
 
@@ -90,6 +93,13 @@ public class ReffeineCacheManager extends AbstractCacheManager {
         if (null != configuration.getCaffeineSpec()) {
             caffeine = Caffeine.from(configuration.getCaffeineSpec());
         }
+        // ttl by name
+        Matcher matcher = NAME_TTL_PATTERN.matcher(name);
+        if (matcher.find()) {
+            caffeine.expireAfterWrite(parseDuration(name, matcher.group(1)));
+            configuration = configuration.redisttl(parseDuration(name, matcher.group(2)));
+        }
+
         return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeine.build());
     }
 
@@ -116,6 +126,32 @@ public class ReffeineCacheManager extends AbstractCacheManager {
 
     public boolean isAllowInFlightCacheCreation() {
         return allowInFlightCacheCreation;
+    }
+
+    static Duration parseDuration(String name, String value) {
+        String duration = value.substring(0, value.length() - 1);
+        Long amount = Long.valueOf(duration);
+        ChronoUnit timeUnit;
+        char lastChar = Character.toLowerCase(value.charAt(value.length() - 1));
+        switch (lastChar) {
+            case 'd':
+                timeUnit = ChronoUnit.DAYS;
+                break;
+            case 'h':
+                timeUnit = ChronoUnit.HOURS;
+                break;
+            case 'm':
+                timeUnit = ChronoUnit.MINUTES;
+                break;
+            case 's':
+                timeUnit = ChronoUnit.SECONDS;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format(
+                        "name %s invalid format; was %s, must end with one of [dDhHmMsS]", name, value));
+        }
+
+        return Duration.of(amount, timeUnit);
     }
 
     /**
