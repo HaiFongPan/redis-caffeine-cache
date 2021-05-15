@@ -2,17 +2,17 @@ package com.github.hfp.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.hfp.config.ReffeineCacheConfiguration;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 import org.springframework.cache.Cache;
 import org.springframework.cache.support.AbstractCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.util.Assert;
 
+import java.util.*;
+import java.util.regex.Pattern;
+
 public class ReffeineCacheManager extends AbstractCacheManager {
+    private static final Pattern NAME_TTL_PATTERN = Pattern.compile("#L(\\d+\\w)#R(\\d+\\w)");
+
     /**
      * Caffeine 缓存builder, 通过 ReffeineCacheConfiguration#caffeineSpec 初始化
      */
@@ -35,8 +35,8 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     private final boolean allowInFlightCacheCreation;
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig,
-            Map<String, ReffeineCacheConfiguration> initialCacheConfig, boolean allowInFlightCacheCreation) {
+                                ReffeineCacheConfiguration defaultCacheConfig,
+                                Map<String, ReffeineCacheConfiguration> initialCacheConfig, boolean allowInFlightCacheCreation) {
         Assert.notNull(reffeineCacheWriter, "ReffeineCacheWriter must not be null!");
         Assert.notNull(defaultCacheConfig, "ReffeineCacheConfiguration must not be null!");
         Assert.notNull(initialCacheConfig, "InitialCacheConfig must not be null!");
@@ -51,18 +51,18 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig) {
+                                ReffeineCacheConfiguration defaultCacheConfig) {
         this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), true);
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig, boolean allowInFlightCacheCreation) {
+                                ReffeineCacheConfiguration defaultCacheConfig, boolean allowInFlightCacheCreation) {
         this(reffeineCacheWriter, defaultCacheConfig, new LinkedHashMap<>(), allowInFlightCacheCreation);
     }
 
     public ReffeineCacheManager(ReffeineCacheWriter reffeineCacheWriter,
-            ReffeineCacheConfiguration defaultCacheConfig,
-            Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
+                                ReffeineCacheConfiguration defaultCacheConfig,
+                                Map<String, ReffeineCacheConfiguration> initialCacheConfig) {
         this(reffeineCacheWriter, defaultCacheConfig, initialCacheConfig, true);
     }
 
@@ -86,7 +86,16 @@ public class ReffeineCacheManager extends AbstractCacheManager {
     }
 
     private ReffeineCache createReffeineCache(String name, ReffeineCacheConfiguration configuration) {
-        return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeineBuilder.build());
+        Caffeine<Object, Object> caffeine = caffeineBuilder;
+
+        // ttl by name
+        configuration = configuration.spelName(name);
+
+        if (null != configuration.getCaffeineSpec()) {
+            caffeine = Caffeine.from(configuration.getCaffeineSpec());
+        }
+
+        return new ReffeineCache(isAllowNullValue(), name, reffeineCacheWriter, configuration, caffeine.build());
     }
 
     public Caffeine<Object, Object> getCaffeineBuilder() {

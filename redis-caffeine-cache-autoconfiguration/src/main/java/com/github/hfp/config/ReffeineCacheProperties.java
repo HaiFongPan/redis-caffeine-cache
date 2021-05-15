@@ -1,11 +1,12 @@
 package com.github.hfp.config;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @ConfigurationProperties(prefix = "reffeine.cache")
 public class ReffeineCacheProperties {
@@ -34,6 +35,10 @@ public class ReffeineCacheProperties {
      * 默认支持 NULL value
      */
     private boolean allowNullValues = true;
+    /**
+     * 默认支持动态创建cache
+     */
+    private boolean allowFlightCacheCreation = true;
 
     public String getChannel() {
         return channel;
@@ -83,6 +88,14 @@ public class ReffeineCacheProperties {
         this.initialCaches = initialCaches;
     }
 
+    public boolean isAllowFlightCacheCreation() {
+        return allowFlightCacheCreation;
+    }
+
+    public void setAllowFlightCacheCreation(boolean allowFlightCacheCreation) {
+        this.allowFlightCacheCreation = allowFlightCacheCreation;
+    }
+
     public String[] getInitialCacheNames() {
         if (StringUtils.isEmpty(initialCaches)) {
             return new String[0];
@@ -110,15 +123,19 @@ public class ReffeineCacheProperties {
         }
     }
 
-    /** Returns a parsed duration value. */
-    private static long parseDuration(String key, @Nullable String value) {
+    /**
+     * Returns a parsed duration value.
+     */
+    static long parseDuration(String key, @Nullable String value) {
         @SuppressWarnings("NullAway")
         String duration = value.substring(0, value.length() - 1);
         return parseLong(key, duration);
     }
 
-    /** Returns a parsed {@link TimeUnit} value. */
-    private static TimeUnit parseTimeUnit(String key, @Nullable String value) {
+    /**
+     * Returns a parsed {@link TimeUnit} value.
+     */
+    static TimeUnit parseTimeUnit(String key, @Nullable String value) {
         @SuppressWarnings("NullAway")
         char lastChar = Character.toLowerCase(value.charAt(value.length() - 1));
         switch (lastChar) {
