@@ -27,11 +27,13 @@ public class ReffeineCacheAutoConfiguration {
     @Autowired
     private ReffeineCacheProperties properties;
 
+    @ConditionalOnMissingBean(ReffeineCacheWriter.class)
     @Bean
     public ReffeineCacheWriter reffeineCacheWriter(RedisConnectionFactory connectionFactory) {
         return new DefaultReffeineCacheWriter(connectionFactory, Duration.ofMillis(50));
     }
 
+    @ConditionalOnMissingBean(ReffeineCacheConfiguration.class)
     @Bean
     public ReffeineCacheConfiguration reffeineCacheConfiguration() {
         ReffeineCacheConfiguration configuration = ReffeineCacheConfiguration.defaultCacheConfig();
