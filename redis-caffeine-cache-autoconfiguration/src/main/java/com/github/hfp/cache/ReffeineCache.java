@@ -3,9 +3,6 @@ package com.github.hfp.cache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.hfp.config.ReffeineCacheConfiguration;
 import com.github.hfp.util.IPUtil;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.util.concurrent.Callable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.cache.support.AbstractValueAdaptingCache;
@@ -20,6 +17,10 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.SerializationUtils;
+
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.concurrent.Callable;
 
 public class ReffeineCache extends AbstractValueAdaptingCache {
     private final Log LOGGER = LogFactory.getLog(getClass());
@@ -54,8 +55,8 @@ public class ReffeineCache extends AbstractValueAdaptingCache {
     private byte[] cacheSyncChannel;
 
     public ReffeineCache(boolean allowNullValues, String name,
-            ReffeineCacheWriter reffeineCacheWriter, ReffeineCacheConfiguration cacheConfig,
-            Cache<Object, Object> localCache) {
+                         ReffeineCacheWriter reffeineCacheWriter, ReffeineCacheConfiguration cacheConfig,
+                         Cache<Object, Object> localCache) {
         super(allowNullValues);
         this.name = name;
         this.reffeineCacheWriter = reffeineCacheWriter;
@@ -128,7 +129,7 @@ public class ReffeineCache extends AbstractValueAdaptingCache {
         }
         final String localCacheKey = createCacheKey(key);
         final byte[] redisCacheKey = serializeCacheKey(localCacheKey);
-        final byte[] serializeCacheValue = serializeCacheValue(value);
+        final byte[] serializeCacheValue = serializeCacheValue(cacheValue);
         reffeineCacheWriter.put(name, redisCacheKey, serializeCacheValue, cacheConfig.getRedisttl());
         reffeineCacheWriter.sync(cacheSyncChannel, serializeCacheMessage(localCacheKey));
         localCache.put(localCacheKey, serializeCacheValue);

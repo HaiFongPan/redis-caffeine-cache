@@ -9,10 +9,7 @@ import com.github.hfp.util.IPUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,19 +21,19 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 
 @Configuration
-@AutoConfigureAfter(RedisAutoConfiguration.class)
 @EnableConfigurationProperties(ReffeineCacheProperties.class)
 public class ReffeineCacheAutoConfiguration {
     private final Log LOGGER = LogFactory.getLog(getClass());
     @Autowired
     private ReffeineCacheProperties properties;
 
+    @ConditionalOnMissingBean(ReffeineCacheWriter.class)
     @Bean
-    @ConditionalOnBean(RedisConnectionFactory.class)
     public ReffeineCacheWriter reffeineCacheWriter(RedisConnectionFactory connectionFactory) {
         return new DefaultReffeineCacheWriter(connectionFactory, Duration.ofMillis(50));
     }
 
+    @ConditionalOnMissingBean(ReffeineCacheConfiguration.class)
     @Bean
     public ReffeineCacheConfiguration reffeineCacheConfiguration() {
         ReffeineCacheConfiguration configuration = ReffeineCacheConfiguration.defaultCacheConfig();
