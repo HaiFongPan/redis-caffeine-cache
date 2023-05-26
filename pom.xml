@@ -14,7 +14,7 @@
     </modules>
 
     <properties>
-        <spring-boot-parent.version>2.0.0.RELEASE</spring-boot-parent.version>
+        <spring-boot-parent.version>2.5.15</spring-boot-parent.version>
         <caffeine.version>2.6.2</caffeine.version>
     </properties>
 
